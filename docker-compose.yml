@@ -1,0 +1,83 @@
+#
+# ██╗  ██╗██╗     ███╗   ██╗ ██████╗ 
+# ██║ ██╔╝██║     ████╗  ██║██╔═══██╗
+# █████╔╝ ██║     ██╔██╗ ██║██║   ██║
+# ██╔═██╗ ██║     ██║╚██╗██║██║   ██║
+# ██║  ██╗███████╗██║ ╚████║╚██████╔╝  
+# ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝ 
+# https://github.com/skolano 
+#------------------------------------
+# Nextcloud as docker container
+# Included: MariaDB, Redis, PHPMyAdmin 
+#
+
+version: '3.7'
+
+services:
+  nc:
+    image: nextcloud:stable
+    container_name: nextcloud
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - nc_data:/var/www/html
+      - apache2:/etc/apache2
+      - ./php.ini:/usr/local/etc/php/conf.d/php-custom.ini
+    networks:
+      - redisnet
+      - dbnet
+    environment:
+      - REDIS_HOST=redis
+      - MYSQL_HOST=db
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=LongAndComplicatedPassword
+    depends_on:
+      - db
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    networks:
+      - redisnet
+
+  db:
+    image: mariadb:10.5.9
+    container_name: mariadb
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: always
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - dbnet
+    environment:
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_ROOT_PASSWORD=LongAndComplicatedPassword
+      - MYSQL_PASSWORD=LongAndComplicatedPassword
+      - TZ=Europe/Warsaw
+
+  phpmyadmin:
+    depends_on:
+      - db
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    ports:
+      - 8081:80
+    environment:
+      PMA_HOST: db
+    networks:
+      - dbnet
+
+volumes:
+  db_data:
+  nc_data:
+  apache2:
+networks:
+  dbnet:
+  redisnet:
